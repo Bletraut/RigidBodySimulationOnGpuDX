@@ -9,8 +9,6 @@
 
 ---
 
-## 🏗️ What Does the Simulation Consist Of?
-
 This simulation is based on Chapter 29 of *GPU Gems 3*: [Chapter 29. Real-Time Rigid Body Simulation on GPUs](https://developer.nvidia.com/gpugems/gpugems3/part-v-physics-simulation/chapter-29-real-time-rigid-body-simulation-gpus), with some modifications that will be described below.  
 The main goal of the project is to recreate the methods used in the article and understand their principles. I deliberately avoided using modern GPU capabilities such as compute shaders (which, by the way, are not supported in the main branch of **MonoGame** at the moment 🐌), writing to 3D texture slices, etc. This was done to stay as close as possible to the technologies used in the article and to experience the spirit of that era, when information was not as widely available, and programming for GPUs felt like magic.
 
