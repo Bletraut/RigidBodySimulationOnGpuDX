@@ -20,6 +20,8 @@ namespace RigidBodySimulationOnGpuDX
         public int BodiesCount { get; private set; }
         public int ParticleCount { get; private set; }
 
+        public bool IsSimulationEnabled { get; set; } = true;
+
         private readonly GraphicsDevice _graphicsDevice;
         private readonly ContentManager _contentManager;
         private readonly float _particleRadius;
@@ -202,6 +204,9 @@ namespace RigidBodySimulationOnGpuDX
         public void Update(float deltaTime)
         {
             AddPendingBodies();
+
+            if (!IsSimulationEnabled)
+                return;
 
             var iterationDeltaTime = deltaTime / IterationsCount;
             for (var i = 0; i < IterationsCount; i++)

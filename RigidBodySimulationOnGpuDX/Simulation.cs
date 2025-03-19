@@ -140,6 +140,9 @@ namespace RigidBodySimulationOnGpuDX
             if (Input.IsKeyDown(Keys.F2))
                 _showSimulationInfo = !_showSimulationInfo;
 
+            if (Input.IsKeyDown(Keys.F))
+                _physicsOnGpuSolver.IsSimulationEnabled = !_physicsOnGpuSolver.IsSimulationEnabled;
+
             if (Input.IsKeyDown(Keys.E))
             {
                 _currentSpawnActionIndex++;
