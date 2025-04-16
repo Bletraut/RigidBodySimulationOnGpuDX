@@ -7,7 +7,6 @@
 	#define PS_SHADERMODEL ps_5_0
 #endif
 
-float3 CameraPosition;
 Matrix InverseViewProjection;
 
 struct VertexShaderInput

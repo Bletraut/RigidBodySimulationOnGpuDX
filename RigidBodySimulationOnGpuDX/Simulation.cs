@@ -77,18 +77,13 @@ namespace RigidBodySimulationOnGpuDX
             ];
         }
 
-        protected override void Initialize()
-        {
-            base.Initialize();
-        }
-
         protected override void LoadContent()
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
 
             _skyboxEffect = Content.Load<Effect>("Effects\\Skybox");
             _pixelTexture = new Texture2D(GraphicsDevice, 1, 1);
-            _pixelTexture.SetData(new[] { Color.White });
+            _pixelTexture.SetData([Color.White]);
             _mainFont = Content.Load<SpriteFont>("Fonts\\MainFont");
 
             _models =
@@ -183,22 +178,22 @@ namespace RigidBodySimulationOnGpuDX
             _cameraRight = Vector3.Transform(Vector3.Right, rotation);
             _cameraUp = Vector3.Cross(_cameraRight, _cameraForward);
 
-            var modeSpeed = Input.IsKeyPressed(Keys.LeftShift) ? _cameraSlowMoveSpeed : _cameraMoveSpeed;
+            var moveSpeed = Input.IsKeyPressed(Keys.LeftShift) ? _cameraSlowMoveSpeed : _cameraMoveSpeed;
             if (Input.IsKeyPressed(Keys.W))
             {
-                _cameraPosition += _cameraForward * modeSpeed;
+                _cameraPosition += _cameraForward * moveSpeed;
             }
             else if (Input.IsKeyPressed(Keys.S))
             {
-                _cameraPosition -= _cameraForward * modeSpeed;
+                _cameraPosition -= _cameraForward * moveSpeed;
             }
             if (Input.IsKeyPressed(Keys.A))
             {
-                _cameraPosition -= _cameraRight * modeSpeed;
+                _cameraPosition -= _cameraRight * moveSpeed;
             }
             else if (Input.IsKeyPressed(Keys.D))
             {
-                _cameraPosition += _cameraRight * modeSpeed;
+                _cameraPosition += _cameraRight * moveSpeed;
             }
 
             _viewMatrix = Matrix.CreateLookAt(_cameraPosition, _cameraPosition + _cameraForward, _cameraUp);
@@ -210,29 +205,25 @@ namespace RigidBodySimulationOnGpuDX
         {
             GraphicsDevice.Clear(Color.Black);
 
-            _skyboxEffect.Parameters["CameraPosition"]?.SetValue(_cameraPosition);
-            _skyboxEffect.Parameters["InverseViewProjection"]?.SetValue(Matrix.Invert(_viewMatrix * _projectionMatrix));
+            _skyboxEffect.Parameters["InverseViewProjection"].SetValue(Matrix.Invert(_viewMatrix * _projectionMatrix));
             _skyboxEffect.CurrentTechnique.Passes[0].Apply();
-            GraphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList,
-                Quad.Vertices, 0, Quad.Vertices.Length,
-                Quad.Indices, 0, Quad.Indices.Length / 3);
+            Quad.Draw(GraphicsDevice);
 
             _physicsOnGpuSolver.Render(_viewMatrix * _projectionMatrix);
 
-            _simulationInfo.Clear();
-            _simulationInfo.AppendLine("Move:WASD | Look:LMB | Shoot:RMB");
-            _simulationInfo.AppendLine("Next:E | Restart:R | Debug:F1|F2");
-            _simulationInfo.AppendLine($"{_spawnActions[_currentSpawnActionIndex].Name} [{_currentSpawnActionIndex + 1}\\{_spawnActions.Length}]");
-            _simulationInfo.AppendLine($"Bodies:{_physicsOnGpuSolver.BodiesCount} Particles:{_physicsOnGpuSolver.ParticleCount}");
-            _simulationInfo.Append($"Fps:{1f / gameTime.ElapsedGameTime.TotalSeconds : 00.0}");
-
             if (_showSimulationInfo)
             {
+                _simulationInfo.Clear();
+                _simulationInfo.AppendLine("Move:WASD | Look:LMB | Shoot:RMB");
+                _simulationInfo.AppendLine("Next:E | Restart:R | Debug:F1|F2");
+                _simulationInfo.AppendLine($"{_spawnActions[_currentSpawnActionIndex].Name} [{_currentSpawnActionIndex + 1}\\{_spawnActions.Length}]");
+                _simulationInfo.AppendLine($"Bodies:{_physicsOnGpuSolver.BodiesCount} Particles:{_physicsOnGpuSolver.ParticleCount}");
+                _simulationInfo.Append($"Fps:{1f / gameTime.ElapsedGameTime.TotalSeconds: 00.0}");
+
                 _spriteBatch.Begin();
-                var infoText = _simulationInfo.ToString();
-                var border = _mainFont.MeasureString(infoText);
+                var border = _mainFont.MeasureString(_simulationInfo);
                 _spriteBatch.Draw(_pixelTexture, new Rectangle(0, 0, (int)border.X, (int)border.Y), new Color(0, 0, 0, 0.85f));
-                _spriteBatch.DrawString(_mainFont, infoText, Vector2.Zero, Color.White);
+                _spriteBatch.DrawString(_mainFont, _simulationInfo, Vector2.Zero, Color.White);
                 _spriteBatch.End();
             }
 

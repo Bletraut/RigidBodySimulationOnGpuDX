@@ -32,7 +32,7 @@ namespace RigidBodySimulationOnGpuDX
             _particleValuesEffect.Parameters["BodiesBufferSize"].SetValue(BodiesBufferSize);
 
             _particleValuesEffect.CurrentTechnique.Passes[0].Apply();
-            DrawQuad();
+            Quad.Draw(_graphicsDevice);
         }
 
         private void FillCollisionGrid()
@@ -72,7 +72,7 @@ namespace RigidBodySimulationOnGpuDX
             _collisionReactionEffect.Parameters["BodyValues"].SetValue(bodyValues);
 
             _collisionReactionEffect.CurrentTechnique.Passes[0].Apply();
-            DrawQuad();
+            Quad.Draw(_graphicsDevice);
         }
 
         private void CalculateBodiesValues(float deltaTime)
@@ -92,19 +92,12 @@ namespace RigidBodySimulationOnGpuDX
             _bodiesValuesEffect.Parameters["InverseInertialTensorArray"].SetValue(_inverseInertiaTensorBuffer);
 
             _bodiesValuesEffect.CurrentTechnique.Passes[0].Apply();
-            DrawQuad();
+            Quad.Draw(_graphicsDevice);
 
             (_currentBodiesPositions, _nextBodiesPositions) = (_nextBodiesPositions, _currentBodiesPositions);
             (_currentBodiesRotations, _nextBodiesRotations) = (_nextBodiesRotations, _currentBodiesRotations);
             (_currentBodiesLinearMomenta, _nextBodiesLinearMomenta) = (_nextBodiesLinearMomenta, _currentBodiesLinearMomenta);
             (_currentBodiesAngularMomenta, _nextBodiesAngularMomenta) = (_nextBodiesAngularMomenta, _currentBodiesAngularMomenta);
-        }
-
-        private void DrawQuad()
-        {
-            _graphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList,
-                Quad.Vertices, 0, Quad.Vertices.Length,
-                Quad.Indices, 0, Quad.Indices.Length / 3);
         }
     }
 }

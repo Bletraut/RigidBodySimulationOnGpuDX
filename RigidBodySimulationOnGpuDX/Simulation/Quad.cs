@@ -12,5 +12,12 @@ namespace RigidBodySimulationOnGpuDX
                 new(new(1, -1, 0), new(1, 0)),
         ];
         public static short[] Indices { get; private set; } = [0, 1, 2, 0, 2, 3];
+
+        public static void Draw(GraphicsDevice graphicsDevice)
+        {
+            graphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList,
+                Vertices, 0, Vertices.Length,
+                Indices, 0, Indices.Length / 3);
+        }
     }
 }

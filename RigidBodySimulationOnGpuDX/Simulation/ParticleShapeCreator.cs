@@ -74,9 +74,7 @@ namespace RigidBodySimulationOnGpuDX
             _depthPeelingEffect.Parameters["GridSize"].SetValue(gridSize);
 
             _depthPeelingEffect.CurrentTechnique.Passes[2].Apply();
-            _graphicsDevice.DrawUserIndexedPrimitives(PrimitiveType.TriangleList,
-                Quad.Vertices, 0, Quad.Vertices.Length,
-                Quad.Indices, 0, Quad.Indices.Length / 3);
+            Quad.Draw(_graphicsDevice);
 
             _graphicsDevice.SetRenderTarget(null);
         }
