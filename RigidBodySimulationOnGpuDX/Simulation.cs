@@ -218,7 +218,7 @@ namespace RigidBodySimulationOnGpuDX
                 _simulationInfo.AppendLine("Next:E | Restart:R | Debug:F1|F2");
                 _simulationInfo.AppendLine($"{_spawnActions[_currentSpawnActionIndex].Name} [{_currentSpawnActionIndex + 1}\\{_spawnActions.Length}]");
                 _simulationInfo.AppendLine($"Bodies:{_physicsOnGpuSolver.BodiesCount} Particles:{_physicsOnGpuSolver.ParticleCount}");
-                _simulationInfo.Append($"Fps:{1f / gameTime.ElapsedGameTime.TotalSeconds: 00.0}");
+                _simulationInfo.Append($"DrawCalls:{GraphicsDevice.Metrics.DrawCount} Fps:{1f / gameTime.ElapsedGameTime.TotalSeconds: 00.0}");
 
                 _spriteBatch.Begin();
                 var border = _mainFont.MeasureString(_simulationInfo);

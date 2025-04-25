@@ -37,6 +37,9 @@ namespace RigidBodySimulationOnGpuDX
 
             foreach (var (model, bodyInstanceCache) in _bodyInstancesCache)
             {
+                if (bodyInstanceCache.InstancesCount == 0)
+                    continue;
+
                 _simulationRenderEffect.Parameters["CenterOfMass"].SetValue(new Vector4(bodyInstanceCache.CenterOfMass, 0));
                 _simulationRenderEffect.CurrentTechnique.Passes[0].Apply();
 
