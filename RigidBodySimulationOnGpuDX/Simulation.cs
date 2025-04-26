@@ -275,7 +275,7 @@ namespace RigidBodySimulationOnGpuDX
         {
             for (int i = 0; i < count; i++)
             {
-                var angle = MathF.PI * 2 * i / (float)count;
+                var angle = MathHelper.TwoPi * i / count;
 
                 var offsetPosition = new Vector3(NextSingle(), NextSingle(), NextSingle()) * offset * 2 - offset;
                 var objectPosition = new Vector3()
