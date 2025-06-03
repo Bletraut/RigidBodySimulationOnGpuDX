@@ -119,7 +119,7 @@ namespace RigidBodySimulationOnGpuDX
             _cameraSlowMoveSpeed = _particleRadius / 10;
 
             var aspectRatio = GraphicsDevice.Viewport.AspectRatio;
-            _projectionMatrix = Matrix.CreatePerspectiveFieldOfView(MathHelper.ToRadians(45.0f), aspectRatio, 1.0f, 10000.0f);
+            _projectionMatrix = Matrix.CreatePerspectiveFieldOfView(MathHelper.ToRadians(45.0f), aspectRatio, 1.0f, 10_000.0f);
         }
 
         protected override void Update(GameTime gameTime)
@@ -205,11 +205,13 @@ namespace RigidBodySimulationOnGpuDX
         {
             GraphicsDevice.Clear(Color.Black);
 
+            GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+            GraphicsDevice.BlendState = BlendState.Opaque;
+            _physicsOnGpuSolver.Render(_viewMatrix * _projectionMatrix);
+
             _skyboxEffect.Parameters["InverseViewProjection"].SetValue(Matrix.Invert(_viewMatrix * _projectionMatrix));
             _skyboxEffect.CurrentTechnique.Passes[0].Apply();
             Quad.Draw(GraphicsDevice);
-
-            _physicsOnGpuSolver.Render(_viewMatrix * _projectionMatrix);
 
             if (_showSimulationInfo)
             {
@@ -226,6 +228,15 @@ namespace RigidBodySimulationOnGpuDX
                 _spriteBatch.DrawString(_mainFont, _simulationInfo, Vector2.Zero, Color.White);
                 _spriteBatch.End();
             }
+
+            _spriteBatch.Begin();
+
+            var size = 256;
+            var viewport = GraphicsDevice.Viewport;
+            _spriteBatch.Draw(_physicsOnGpuSolver.ShadowMapDebug,
+                new Rectangle(0, viewport.Height - size, size, size), Color.White);
+
+            _spriteBatch.End();
 
             base.Draw(gameTime);
         }

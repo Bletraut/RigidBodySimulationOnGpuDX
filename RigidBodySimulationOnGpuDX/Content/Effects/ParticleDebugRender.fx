@@ -58,9 +58,6 @@ technique BasicColorDrawing
 {
 	pass P0
 	{
-        ZEnable = True;
-        ZFunc = Less;
-
 		VertexShader = compile VS_SHADERMODEL MainVS();
 		PixelShader = compile PS_SHADERMODEL MainPS();
 	}

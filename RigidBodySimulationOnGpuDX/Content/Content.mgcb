@@ -37,6 +37,12 @@
 /processorParam:DebugMode=Auto
 /build:Effects/GridGeneration.fx
 
+#begin Effects/LineDebugRender.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/processorParam:DebugMode=Auto
+/build:Effects/LineDebugRender.fx
+
 #begin Effects/ParticleDebugRender.fx
 /importer:EffectImporter
 /processor:EffectProcessor

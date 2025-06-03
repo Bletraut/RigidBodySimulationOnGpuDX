@@ -29,7 +29,10 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
     float4 screenPosition = float4(input.Uv * 2 - 1, 1, 1);
     float4 worldPosition = mul(screenPosition, InverseViewProjection);
 	
-    output.Position = input.Position;
+    float4 position = input.Position;
+    position.z = 1;
+	
+    output.Position = position;
     output.Uv = input.Uv;
     output.ViewDirection = normalize(worldPosition.xyz);
 
@@ -61,8 +64,6 @@ technique BasicColorDrawing
 {
 	pass P0
 	{
-        ZEnable = False;
-
 		VertexShader = compile VS_SHADERMODEL MainVS();
 		PixelShader = compile PS_SHADERMODEL MainPS();
 	}
