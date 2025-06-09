@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Linq;
 
 using Microsoft.Xna.Framework;
@@ -24,8 +25,16 @@ namespace RigidBodySimulationOnGpuDX
             new(-1, 1, -1), new (1, 1, -1), new(-1, -1, -1), new(1, -1, -1),
             new(-1, 1, 1), new (1, 1, 1), new(-1, -1, 1), new(1, -1, 1)
         ];
-        private Vector3[] _frustumCornersWorldPositions = new Vector3[8];
+        private readonly Vector3[] _frustumCornersWorldPositions = new Vector3[8];
 
+        private readonly SamplerState _shadowSamplerState = new()
+        {
+            Filter = TextureFilter.Linear,
+            FilterMode = TextureFilterMode.Comparison,
+            AddressU = TextureAddressMode.Border,
+            AddressV = TextureAddressMode.Border,
+            ComparisonFunction = CompareFunction.GreaterEqual
+        };
         private RenderTarget2D _shadowMap;
 
         // Debug.
@@ -75,7 +84,7 @@ namespace RigidBodySimulationOnGpuDX
                 DrawInstances(lightViewProjectionMatrix, _simulationRenderEffect.CurrentTechnique.Passes[0]);
                 _graphicsDevice.SetRenderTarget(null);
 
-                _simulationRenderEffect.Parameters["ShadowMap"].SetValue(_shadowMap);
+                _simulationRenderEffect.Parameters["ShadowMap"]?.SetValue(_shadowMap);
                 _simulationRenderEffect.Parameters["LightViewProjection"].SetValue(lightViewProjectionMatrix);
             }
 
@@ -107,9 +116,12 @@ namespace RigidBodySimulationOnGpuDX
 
             DrawInstances(viewProjection, _simulationRenderEffect.CurrentTechnique.Passes[1]);
             DrawTable(viewProjection, _simulationRenderEffect.CurrentTechnique.Passes[2]);
+            //DrawInstances(viewProjection, _simulationRenderEffect.CurrentTechnique.Passes[1], _shadowSamplerState, 1);
+            //DrawTable(viewProjection, _simulationRenderEffect.CurrentTechnique.Passes[2], _shadowSamplerState, 1);
         }
 
-        private void DrawInstances(Matrix viewProjection, EffectPass pass)
+        private void DrawInstances(Matrix viewProjection, EffectPass pass,
+            SamplerState samplerState = null, int samplerSlot = 0)
         {
             _simulationRenderEffect.Parameters["ViewProjection"].SetValue(viewProjection);
 
@@ -120,6 +132,9 @@ namespace RigidBodySimulationOnGpuDX
 
                 _simulationRenderEffect.Parameters["CenterOfMass"].SetValue(new Vector4(bodyInstanceCache.CenterOfMass, 0));
                 pass.Apply();
+
+                if (samplerState != null)
+                    _graphicsDevice.SamplerStates[samplerSlot] = samplerState;
 
                 foreach (var mesh in model.Meshes)
                 {
@@ -136,13 +151,17 @@ namespace RigidBodySimulationOnGpuDX
             }
         }
 
-        private void DrawTable(Matrix viewProjection, EffectPass pass)
+        private void DrawTable(Matrix viewProjection, EffectPass pass,
+            SamplerState samplerState = null, int samplerSlot = 0)
         {
             var modelMatrix = Matrix.CreateScale(_particleRadius * GridSize * 2)
                 * Matrix.CreateTranslation(0, FloorPositionY, 0);
             _simulationRenderEffect.Parameters["Model"].SetValue(modelMatrix);
             _simulationRenderEffect.Parameters["ViewProjection"].SetValue(viewProjection);
             pass.Apply();
+
+            if (samplerState != null)
+                _graphicsDevice.SamplerStates[samplerSlot] = samplerState;
 
             foreach (var mesh in _tableModel.Meshes)
             {
