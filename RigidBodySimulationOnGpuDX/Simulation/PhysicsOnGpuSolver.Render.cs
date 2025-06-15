@@ -19,6 +19,9 @@ namespace RigidBodySimulationOnGpuDX
         public int ShadowMapSize { get; set; } = DefaultShadowMapSize;
         public bool EnableShadows { get; set; } = true;
 
+        public float MinVariance { get; set; } = 0.0001f;
+        public float LightBleedingReduction { get; set; } = 0.2f;
+
         // Shadows.
         private readonly Vector3[] _frustumCorners =
         [
@@ -27,15 +30,8 @@ namespace RigidBodySimulationOnGpuDX
         ];
         private readonly Vector3[] _frustumCornersWorldPositions = new Vector3[8];
 
-        private readonly SamplerState _shadowSamplerState = new()
-        {
-            Filter = TextureFilter.Linear,
-            FilterMode = TextureFilterMode.Comparison,
-            AddressU = TextureAddressMode.Border,
-            AddressV = TextureAddressMode.Border,
-            ComparisonFunction = CompareFunction.GreaterEqual
-        };
         private RenderTarget2D _shadowMap;
+        private RenderTarget2D _shadowMapTemp;
 
         // Debug.
         public RenderTarget2D ShadowMapDebug => _shadowMap;
@@ -47,10 +43,14 @@ namespace RigidBodySimulationOnGpuDX
                 if (_shadowMap == null || _shadowMap.Width != ShadowMapSize)
                 {
                     _shadowMap?.Dispose();
-                    _shadowMap = new RenderTarget2D(_graphicsDevice, ShadowMapSize, ShadowMapSize,
-                        false, SurfaceFormat.Single, DepthFormat.Depth24Stencil8);
+                    _shadowMapTemp?.Dispose();
 
-                    var shadowMapValues = new Vector4(1f / ShadowMapSize, 1f / ShadowMapSize, 0, 0);
+                    _shadowMap = new RenderTarget2D(_graphicsDevice, ShadowMapSize, ShadowMapSize,
+                        false, SurfaceFormat.Vector2, DepthFormat.Depth24Stencil8);
+                    _shadowMapTemp = new RenderTarget2D(_graphicsDevice, ShadowMapSize, ShadowMapSize,
+                        false, SurfaceFormat.Vector2, DepthFormat.Depth24Stencil8);
+
+                    var shadowMapValues = new Vector4(MinVariance, LightBleedingReduction, 0, 0);
                     _simulationRenderEffect.Parameters["ShadowMapValues"].SetValue(shadowMapValues);
                 }
 
@@ -82,9 +82,10 @@ namespace RigidBodySimulationOnGpuDX
                 _graphicsDevice.SetRenderTarget(_shadowMap);
                 _graphicsDevice.Clear(Color.White);
                 DrawInstances(lightViewProjectionMatrix, _simulationRenderEffect.CurrentTechnique.Passes[0]);
+                //ApplyBoxBlur(2);
                 _graphicsDevice.SetRenderTarget(null);
 
-                _simulationRenderEffect.Parameters["ShadowMap"]?.SetValue(_shadowMap);
+                _simulationRenderEffect.Parameters["ShadowMap"].SetValue(_shadowMap);
                 _simulationRenderEffect.Parameters["LightViewProjection"].SetValue(lightViewProjectionMatrix);
             }
 
@@ -116,12 +117,9 @@ namespace RigidBodySimulationOnGpuDX
 
             DrawInstances(viewProjection, _simulationRenderEffect.CurrentTechnique.Passes[1]);
             DrawTable(viewProjection, _simulationRenderEffect.CurrentTechnique.Passes[2]);
-            //DrawInstances(viewProjection, _simulationRenderEffect.CurrentTechnique.Passes[1], _shadowSamplerState, 1);
-            //DrawTable(viewProjection, _simulationRenderEffect.CurrentTechnique.Passes[2], _shadowSamplerState, 1);
         }
 
-        private void DrawInstances(Matrix viewProjection, EffectPass pass,
-            SamplerState samplerState = null, int samplerSlot = 0)
+        private void DrawInstances(Matrix viewProjection, EffectPass pass)
         {
             _simulationRenderEffect.Parameters["ViewProjection"].SetValue(viewProjection);
 
@@ -132,9 +130,6 @@ namespace RigidBodySimulationOnGpuDX
 
                 _simulationRenderEffect.Parameters["CenterOfMass"].SetValue(new Vector4(bodyInstanceCache.CenterOfMass, 0));
                 pass.Apply();
-
-                if (samplerState != null)
-                    _graphicsDevice.SamplerStates[samplerSlot] = samplerState;
 
                 foreach (var mesh in model.Meshes)
                 {
@@ -151,17 +146,13 @@ namespace RigidBodySimulationOnGpuDX
             }
         }
 
-        private void DrawTable(Matrix viewProjection, EffectPass pass,
-            SamplerState samplerState = null, int samplerSlot = 0)
+        private void DrawTable(Matrix viewProjection, EffectPass pass)
         {
             var modelMatrix = Matrix.CreateScale(_particleRadius * GridSize * 2)
                 * Matrix.CreateTranslation(0, FloorPositionY, 0);
             _simulationRenderEffect.Parameters["Model"].SetValue(modelMatrix);
             _simulationRenderEffect.Parameters["ViewProjection"].SetValue(viewProjection);
             pass.Apply();
-
-            if (samplerState != null)
-                _graphicsDevice.SamplerStates[samplerSlot] = samplerState;
 
             foreach (var mesh in _tableModel.Meshes)
             {
@@ -183,6 +174,24 @@ namespace RigidBodySimulationOnGpuDX
             {
                 var position = Vector4.Transform(new Vector4(_frustumCorners[i], 1), inverse);
                 _frustumCornersWorldPositions[i] = new Vector3(position.X, position.Y, position.Z) / position.W;
+            }
+        }
+
+        private void ApplyBoxBlur(int samplesCount)
+        {
+            _boxBlurEffect.Parameters["TexelSize"].SetValue(new Vector2(1f / _shadowMap.Width, 1f / _shadowMap.Height));
+            for (var i = 0; i < samplesCount; i++)
+            {
+                for (var passIndex = 0; passIndex <= 1; passIndex++)
+                {
+                    _graphicsDevice.SetRenderTarget(_shadowMapTemp);
+
+                    _boxBlurEffect.Parameters["Source"].SetValue(_shadowMap);
+                    _boxBlurEffect.CurrentTechnique.Passes[passIndex].Apply();
+                    Quad.Draw(_graphicsDevice);
+
+                    (_shadowMap, _shadowMapTemp) = (_shadowMapTemp, _shadowMap);
+                }
             }
         }
     }

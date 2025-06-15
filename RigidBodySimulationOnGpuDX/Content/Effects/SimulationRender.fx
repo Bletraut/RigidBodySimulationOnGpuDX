@@ -15,19 +15,17 @@ Texture2D BodiesRotations;
 sampler2D BaseColor;
 float4 CenterOfMass;
 
-//Texture2D ShadowMap;
-//SamplerComparisonState ShadowMapSampler;
+float3 LightDirection;
+matrix LightViewProjection;
+
 sampler2D ShadowMap = sampler_state
 {
-    Filter = Point;
+    Filter = Linear;
     AddressU = Border;
     AddressV = Border;
 };
-// x,y = Texel Size
+// x - Min Variance, y - Light Bleeding Reduction
 float4 ShadowMapValues;
-
-float3 LightDirection;
-matrix LightViewProjection;
 
 matrix Model;
 matrix ViewProjection;
@@ -92,81 +90,23 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
     return output;
 }
 
-float SampleShadow(float2 uv, float depth)
+float linstep(float min, float max, float value)
 {
-    float shadowMapDepth = tex2D(ShadowMap, uv).r;
-    return step(shadowMapDepth, depth);
+    return saturate((value - min) / (max - min));
 }
 
-float SampleShadowPcf3x3(float2 uv, float depth)
+float SampleVarianceShadowMap(sampler2D shadowMap, float2 shadowUv, float currentDepth,
+    float minVariance, float lightBleedingReduction)
 {
-    float shadow = 0;
-    for (float x = -1; x <= 1; x++)
-    {
-        for (float y = -1; y <= 1; y++)
-        {
-            shadow += SampleShadow(uv + float2(x, y) * ShadowMapValues.xy, depth);
-        }
-    }
-    return shadow / 9;
-}
-
-float CalculateShadow(float4 lightSpacePosition, float lightFactor)
-{
-    float3 projected = lightSpacePosition.xyz / lightSpacePosition.w;
+    float2 moments = tex2D(shadowMap, shadowUv);
     
-    //float currentDepth = projected.z;
-    float currentDepth = projected.z - max(0.0085 * (1 - lightFactor), 0.00005);
+    float p = currentDepth <= moments.x;
+    float variance = max(moments.y - (moments.x * moments.x), minVariance);
     
-    float2 shadowUv = projected.xy * 0.5 + 0.5;
-    shadowUv.y = 1 - shadowUv.y;
+    float d = currentDepth - moments.x;
+    float pMax = linstep(lightBleedingReduction, 1, variance / (variance + d * d));
     
-    float2 texelCenter = frac(shadowUv / ShadowMapValues.xy) - 0.5;
-    float2 offset = 2 * float2(step(0, texelCenter)) - 1;
-    offset *= ShadowMapValues.xy;
-    
-    float center = SampleShadowPcf3x3(shadowUv, currentDepth);
-    float horizontal = SampleShadowPcf3x3(shadowUv + float2(offset.x, 0), currentDepth);
-    float vertical = SampleShadowPcf3x3(shadowUv + float2(0, offset.y), currentDepth);
-    float diagonal = SampleShadowPcf3x3(shadowUv + offset, currentDepth);
-    
-    float2 t = abs(texelCenter) / 0.5;
-    
-    float h = lerp(center, horizontal, 0.5);
-    float v = lerp(center, vertical, 0.5);
-    float m = (center + horizontal + vertical + diagonal) / 4;
-    
-    if (t.x > t.y)
-    {
-        float a = 1 - t.x;
-        float b = t.y;
-        float c = 1 - a - b;
-		
-        return h * c + center * a + m * b;
-    }
-    else
-    {
-        float a = t.x;
-        float b = 1 - t.y;
-        float c = 1 - a - b;
-		
-        return v * c + center * b + m * a;
-    }
-    
-    //return SampleShadowPcf3x3(shadowUv, currentDepth);
-    
-    //float shadow = SampleShadowPcf3x3(shadowUv, currentDepth);
-    //return shadow * frac(shadowUv / ShadowMapValues.xy).x;
-    
-    //float shadow = 0;
-    //for (float x = -1; x <= 1; x++)
-    //{
-    //    for (float y = -1; y <= 1; y++)
-    //    {
-    //        shadow += ShadowMap.SampleCmp(ShadowMapSampler, shadowUv + float2(x, y) * ShadowMapValues.xy, currentDepth).r;
-    //    }
-    //}
-    //return shadow / 9;
+    return max(p, pMax);
 }
 
 float4 MainPS(VertexShaderOutput input) : SV_Target
@@ -175,19 +115,15 @@ float4 MainPS(VertexShaderOutput input) : SV_Target
     float3 lightColor = float3(1.35, 1.35, 1.35);
     
     float lightFactor = dot(lightDirection, input.Normal.xyz);
-    float shadow = CalculateShadow(input.LightSpacePosition, lightFactor);
-
-    // Temp
-    //float3 projected = input.LightSpacePosition.xyz / input.LightSpacePosition.w;
-    //float2 shadowUv = projected.xy * 0.5 + 0.5;
-    //shadowUv.y = 1 - shadowUv.y;
-    //float2 texelCenter = frac(shadowUv / ShadowMapValues.xy) - 0.5;
-    //float currentDepth = projected.z - max(0.0085 * (1 - lightFactor), 0.00005);
-    //if (SampleShadowPcf3x3(shadowUv, currentDepth) > 0 && any(abs(texelCenter) > 0.485))
-    //    return float4(1, 0, 0, 1);
-    // END
     
-    float3 shadowColor = float3(0.35, 0.35, 0.35) * shadow;
+    float3 projectedPosition = input.LightSpacePosition.xyz / input.LightSpacePosition.w;
+    float2 shadowUv = projectedPosition.xy * 0.5 + 0.5;
+    shadowUv.y = 1 - shadowUv.y;
+    
+    float shadowFactor = SampleVarianceShadowMap(ShadowMap, shadowUv, projectedPosition.z,
+        ShadowMapValues.x, ShadowMapValues.y);
+    
+    float3 shadowColor = float3(0.35, 0.35, 0.35) * (1 - shadowFactor);
     float3 diffuseColor = tex2D(BaseColor, input.Uv1).xyz;
     diffuseColor *= 1 - shadowColor;
     
@@ -199,22 +135,25 @@ float4 MainPS(VertexShaderOutput input) : SV_Target
 float4 ShadowPS(VertexShaderOutput input) : SV_Target
 {
     float depth = input.Position.z / input.Position.w;
-    return float4(depth, 0, 0, 1);
+    
+    float dx = ddx(depth);
+    float dy = ddy(depth);
+    float moment2 = depth * depth + 0.25 * (dx * dx + dy * dy);
+    
+    float2 moments = float2(depth, moment2);
+    
+    return float4(moments, 0, 1);
 }
 
 technique BasicColorDrawing
 {
     pass P0
     {
-        //CullMode = CW;
-
         VertexShader = compile VS_SHADERMODEL InstanceVS();
         PixelShader = compile PS_SHADERMODEL ShadowPS();
     }
     pass P1
     {
-        //CullMode = CCW;
-
         VertexShader = compile VS_SHADERMODEL InstanceVS();
         PixelShader = compile PS_SHADERMODEL MainPS();
     }

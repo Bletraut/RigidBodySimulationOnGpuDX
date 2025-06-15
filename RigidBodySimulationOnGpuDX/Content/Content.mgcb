@@ -19,6 +19,12 @@
 /processorParam:DebugMode=Auto
 /build:Effects/BodiesValues.fx
 
+#begin Effects/BoxBlur.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/processorParam:DebugMode=Auto
+/build:Effects/BoxBlur.fx
+
 #begin Effects/CollisionReaction.fx
 /importer:EffectImporter
 /processor:EffectProcessor

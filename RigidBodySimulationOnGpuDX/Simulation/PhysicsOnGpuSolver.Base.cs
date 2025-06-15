@@ -75,6 +75,8 @@ namespace RigidBodySimulationOnGpuDX
         private readonly Effect _particlesDebugRenderEffect;
         private readonly Effect _simulationRenderEffect;
 
+        private readonly Effect _boxBlurEffect;
+
         // Textures.
         private readonly Texture2D _baseColorTexture;
 
@@ -161,6 +163,7 @@ namespace RigidBodySimulationOnGpuDX
 
             _particlesDebugRenderEffect = _contentManager.Load<Effect>("Effects\\ParticleDebugRender");
             _simulationRenderEffect = _contentManager.Load<Effect>("Effects\\SimulationRender");
+            _boxBlurEffect = _contentManager.Load<Effect>("Effects\\BoxBlur");
 
             // Textures.
             _baseColorTexture = _contentManager.Load<Texture2D>("Textures\\BaseColor");
