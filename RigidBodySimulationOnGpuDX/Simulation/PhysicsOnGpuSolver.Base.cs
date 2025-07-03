@@ -75,7 +75,7 @@ namespace RigidBodySimulationOnGpuDX
         private readonly Effect _particlesDebugRenderEffect;
         private readonly Effect _simulationRenderEffect;
 
-        private readonly Effect _boxBlurEffect;
+        private readonly Effect _blurEffect;
 
         // Textures.
         private readonly Texture2D _baseColorTexture;
@@ -83,6 +83,8 @@ namespace RigidBodySimulationOnGpuDX
         // Models.
         private readonly Model _unitSphereModel;
         private readonly Model _tableModel;
+
+        private readonly Vector3[] _tableCorners;
 
         private readonly Matrix[] _inverseInertiaTensorBuffer = new Matrix[InverseInertiaTensorBufferSize];
         private readonly RenderTarget2D[] _renderTargetsToClear;
@@ -163,7 +165,7 @@ namespace RigidBodySimulationOnGpuDX
 
             _particlesDebugRenderEffect = _contentManager.Load<Effect>("Effects\\ParticleDebugRender");
             _simulationRenderEffect = _contentManager.Load<Effect>("Effects\\SimulationRender");
-            _boxBlurEffect = _contentManager.Load<Effect>("Effects\\BoxBlur");
+            _blurEffect = _contentManager.Load<Effect>("Effects\\Blur");
 
             // Textures.
             _baseColorTexture = _contentManager.Load<Texture2D>("Textures\\BaseColor");
@@ -171,6 +173,8 @@ namespace RigidBodySimulationOnGpuDX
             // Models.
             _unitSphereModel = _contentManager.Load<Model>("Models\\UnitSphere");
             _tableModel = _contentManager.Load<Model>("Models\\Table");
+
+            _tableCorners = _tableModel.CalculateBoundingBox().GetCorners();
 
             _renderTargetsToClear =
             [

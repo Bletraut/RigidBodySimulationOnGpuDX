@@ -7,9 +7,6 @@
 	#define PS_SHADERMODEL ps_5_0
 #endif
 
-#define MinBias 0.01
-#define MaxBias 0.1
-
 Texture2D BodiesPositions;
 Texture2D BodiesRotations;
 sampler2D BaseColor;
@@ -24,7 +21,8 @@ sampler2D ShadowMap = sampler_state
     AddressU = Border;
     AddressV = Border;
 };
-// x - Min Variance, y - Light Bleeding Reduction
+float3 ShadowColor;
+// x - Sharpness
 float4 ShadowMapValues;
 
 matrix Model;
@@ -34,7 +32,7 @@ struct VertexShaderInput
 {
 	float4 Position : POSITION0;
     float4 Normal : NORMAL0;
-    float2 Uv1 : TEXCOORD0;
+    float2 Uv : TEXCOORD0;
 };
 
 struct InstanceInput
@@ -46,7 +44,7 @@ struct VertexShaderOutput
 {
 	float4 Position : SV_POSITION;
     float4 Normal : NORMAL0;
-    float2 Uv1 : TEXCOORD0;
+    float2 Uv : TEXCOORD0;
     float4 LightSpacePosition : TEXCOORD1;
 };
 
@@ -70,7 +68,7 @@ VertexShaderOutput InstanceVS(in VertexShaderInput input, InstanceInput instance
 	
     output.Position = mul(position, ViewProjection);
     output.Normal = normalize(RotateByQuaternion(input.Normal, instanceRotation));
-    output.Uv1 = input.Uv1;
+    output.Uv = input.Uv;
     output.LightSpacePosition = mul(position, LightViewProjection);
 
     return output;
@@ -84,82 +82,110 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
     
     output.Position = mul(worldPosition, ViewProjection);
     output.Normal = normalize(mul(input.Normal, Model));
-    output.Uv1 = input.Uv1;
+    output.Uv = input.Uv;
     output.LightSpacePosition = mul(worldPosition, LightViewProjection);
 
     return output;
 }
 
-float linstep(float min, float max, float value)
+float3 GetShadowValues(float4 lightSpacePosition)
 {
-    return saturate((value - min) / (max - min));
+    float3 projectedPosition = lightSpacePosition.xyz / lightSpacePosition.w;
+    float2 shadowUv = projectedPosition.xy * 0.5 + 0.5;
+    shadowUv.y = 1 - shadowUv.y;
+    
+    return float3(shadowUv, projectedPosition.z);
 }
 
-float SampleVarianceShadowMap(sampler2D shadowMap, float2 shadowUv, float currentDepth,
-    float minVariance, float lightBleedingReduction)
+float SampleShadowMap(sampler2D shadowMap, float2 shadowUv, float currentDepth)
 {
-    float2 moments = tex2D(shadowMap, shadowUv);
+    float2 shadowValues = tex2D(shadowMap, shadowUv).rg;
     
-    float p = currentDepth <= moments.x;
-    float variance = max(moments.y - (moments.x * moments.x), minVariance);
+    float scale = max(0, currentDepth - shadowValues.x);
+    float shadowFactor = shadowValues.x * (1 - smoothstep(0, ShadowMapValues.x, scale));
     
-    float d = currentDepth - moments.x;
-    float pMax = linstep(lightBleedingReduction, 1, variance / (variance + d * d));
-    
-    return max(p, pMax);
+    return shadowFactor;
 }
 
-float4 MainPS(VertexShaderOutput input) : SV_Target
+float3 ComputeDiffuse(float2 uv, float3 normal, float shadowFactor)
 {
     float3 lightDirection = normalize(LightDirection);
     float3 lightColor = float3(1.35, 1.35, 1.35);
     
-    float lightFactor = dot(lightDirection, input.Normal.xyz);
+    float lightFactor = dot(lightDirection, normal.xyz);
     
-    float3 projectedPosition = input.LightSpacePosition.xyz / input.LightSpacePosition.w;
-    float2 shadowUv = projectedPosition.xy * 0.5 + 0.5;
-    shadowUv.y = 1 - shadowUv.y;
+    float3 shadowColor = ShadowColor * (1 - shadowFactor);
     
-    float shadowFactor = SampleVarianceShadowMap(ShadowMap, shadowUv, projectedPosition.z,
-        ShadowMapValues.x, ShadowMapValues.y);
-    
-    float3 shadowColor = float3(0.35, 0.35, 0.35) * (1 - shadowFactor);
-    float3 diffuseColor = tex2D(BaseColor, input.Uv1).xyz;
+    float3 diffuseColor = tex2D(BaseColor, uv).xyz;
     diffuseColor *= 1 - shadowColor;
     
     float3 resultColor = diffuseColor * lightColor * (lightFactor * 0.5 + 0.5);
     
-    return float4(resultColor, 1);
+    return resultColor;
 }
 
 float4 ShadowPS(VertexShaderOutput input) : SV_Target
 {
     float depth = input.Position.z / input.Position.w;
+    return float4(depth, 0, 0, 0);
+}
+
+float4 ShadowMapCompare_PS(VertexShaderOutput input) : SV_Target
+{
+    float3 shadowValues = GetShadowValues(input.LightSpacePosition);
+    float shadowFactor = SampleShadowMap(ShadowMap, shadowValues.xy, shadowValues.z);
     
-    float dx = ddx(depth);
-    float dy = ddy(depth);
-    float moment2 = depth * depth + 0.25 * (dx * dx + dy * dy);
+    float3 resultColor = ComputeDiffuse(input.Uv, input.Normal.xyz, shadowFactor);
+    return float4(resultColor, 1);
+}
+
+float4 ShadowMap_PS(VertexShaderOutput input) : SV_Target
+{
+    float3 shadowValues = GetShadowValues(input.LightSpacePosition);
+    float shadowFactor = tex2D(ShadowMap, shadowValues.xy).g;
     
-    float2 moments = float2(depth, moment2);
-    
-    return float4(moments, 0, 1);
+    float3 resultColor = ComputeDiffuse(input.Uv, input.Normal.xyz, shadowFactor);
+    return float4(resultColor, 1);
+}
+
+float4 NoShadows_PS(VertexShaderOutput input) : SV_Target
+{
+    float3 resultColor = ComputeDiffuse(input.Uv, input.Normal.xyz, 1);
+    return float4(resultColor, 1);
 }
 
 technique BasicColorDrawing
 {
-    pass P0
+    // Shadow pass.
+    pass ShadowPass
     {
+        CullMode = CW;
+
         VertexShader = compile VS_SHADERMODEL InstanceVS();
         PixelShader = compile PS_SHADERMODEL ShadowPS();
     }
-    pass P1
+
+    // Shadows.
+    pass InstanceShadows
     {
         VertexShader = compile VS_SHADERMODEL InstanceVS();
-        PixelShader = compile PS_SHADERMODEL MainPS();
+        PixelShader = compile PS_SHADERMODEL ShadowMapCompare_PS();
     }
-    pass P2
+    pass ModelShadows
     {
         VertexShader = compile VS_SHADERMODEL MainVS();
-        PixelShader = compile PS_SHADERMODEL MainPS();
+        PixelShader = compile PS_SHADERMODEL ShadowMap_PS();
+    }
+
+    // No shadows.
+    pass InstanceNoShadows
+    {
+        VertexShader = compile VS_SHADERMODEL InstanceVS();
+        PixelShader = compile PS_SHADERMODEL NoShadows_PS();
+    }
+    pass ModelNoShadows
+    {
+        VertexShader = compile VS_SHADERMODEL MainVS();
+        PixelShader = compile PS_SHADERMODEL NoShadows_PS();
     }
 };

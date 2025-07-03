@@ -13,17 +13,17 @@
 
 #---------------------------------- Content ---------------------------------#
 
+#begin Effects/Blur.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/processorParam:DebugMode=Auto
+/build:Effects/Blur.fx
+
 #begin Effects/BodiesValues.fx
 /importer:EffectImporter
 /processor:EffectProcessor
 /processorParam:DebugMode=Auto
 /build:Effects/BodiesValues.fx
-
-#begin Effects/BoxBlur.fx
-/importer:EffectImporter
-/processor:EffectProcessor
-/processorParam:DebugMode=Auto
-/build:Effects/BoxBlur.fx
 
 #begin Effects/CollisionReaction.fx
 /importer:EffectImporter
@@ -64,7 +64,7 @@
 #begin Effects/SimulationRender.fx
 /importer:EffectImporter
 /processor:EffectProcessor
-/processorParam:DebugMode=Auto
+/processorParam:DebugMode=Debug
 /build:Effects/SimulationRender.fx
 
 #begin Effects/Skybox.fx

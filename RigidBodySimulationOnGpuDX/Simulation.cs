@@ -48,6 +48,9 @@ namespace RigidBodySimulationOnGpuDX
         private Model _barrelModel;
         private PhysicsOnGpuSolver _physicsOnGpuSolver;
 
+        private readonly (bool Enabled, int ShadowMapSize, BlurType BlurType, int BlurSize)[] _shadowSettings;
+        private int _currentShadowSettingsIndex;
+
         private readonly (string Name, Action Action)[] _spawnActions;
         private int _currentSpawnActionIndex;
 
@@ -64,6 +67,23 @@ namespace RigidBodySimulationOnGpuDX
             Content.RootDirectory = "Content";
             IsFixedTimeStep = false;
             IsMouseVisible = true;
+
+            _shadowSettings =
+            [
+                (true, PhysicsOnGpuSolver.DefaultShadowMapSize, BlurType.Gaussian, PhysicsOnGpuSolver.DefaultGaussianKernerSize),
+                (true, PhysicsOnGpuSolver.DefaultShadowMapSize * 2, BlurType.Gaussian, 5),
+                (true, PhysicsOnGpuSolver.DefaultShadowMapSize * 4, BlurType.Gaussian, 7),
+
+                (true, PhysicsOnGpuSolver.DefaultShadowMapSize, BlurType.Box, PhysicsOnGpuSolver.DefaultBoxBlurIterations),
+                (true, PhysicsOnGpuSolver.DefaultShadowMapSize * 2, BlurType.Box, 3),
+                (true, PhysicsOnGpuSolver.DefaultShadowMapSize * 4, BlurType.Box, 5),
+
+                (true, PhysicsOnGpuSolver.DefaultShadowMapSize, BlurType.None, 0),
+                (true, PhysicsOnGpuSolver.DefaultShadowMapSize * 2, BlurType.None, 0),
+                (true, PhysicsOnGpuSolver.DefaultShadowMapSize * 4, BlurType.None, 0),
+
+                (false, 0, BlurType.None, 0)
+            ];
 
             _spawnActions =
             [
@@ -106,6 +126,7 @@ namespace RigidBodySimulationOnGpuDX
             {
                 FloorPositionY = -_particleRadius * PhysicsOnGpuSolver.GridSize / 2
             };
+            ApplyCurrentShadowSettings();
             RunCurrentSpawnAction();
 
             _cameraPosition = new Vector3()
@@ -134,6 +155,15 @@ namespace RigidBodySimulationOnGpuDX
 
             if (Input.IsKeyDown(Keys.F2))
                 _showSimulationInfo = !_showSimulationInfo;
+
+            if (Input.IsKeyDown(Keys.F3))
+            {
+                _currentShadowSettingsIndex++;
+                if (_currentShadowSettingsIndex >= _shadowSettings.Length)
+                    _currentShadowSettingsIndex = 0;
+
+                ApplyCurrentShadowSettings();
+            }
 
             if (Input.IsKeyDown(Keys.F))
                 _physicsOnGpuSolver.IsSimulationEnabled = !_physicsOnGpuSolver.IsSimulationEnabled;
@@ -215,10 +245,14 @@ namespace RigidBodySimulationOnGpuDX
 
             if (_showSimulationInfo)
             {
+                var (Enabled, ShadowMapSize, BlurType, BlurSize) = _shadowSettings[_currentShadowSettingsIndex];
+
                 _simulationInfo.Clear();
                 _simulationInfo.AppendLine("Move:WASD | Look:LMB | Shoot:RMB");
                 _simulationInfo.AppendLine("Next:E | Restart:R | Debug:F1|F2");
-                _simulationInfo.AppendLine($"{_spawnActions[_currentSpawnActionIndex].Name} [{_currentSpawnActionIndex + 1}\\{_spawnActions.Length}]");
+                _simulationInfo.AppendLine("Pause:F | Shadows:F3");
+                _simulationInfo.AppendLine($"Shadows:{Enabled} [Map:{ShadowMapSize} Blur:{BlurType} {BlurSize}]");
+                _simulationInfo.AppendLine($"Scene:{_spawnActions[_currentSpawnActionIndex].Name} [{_currentSpawnActionIndex + 1}\\{_spawnActions.Length}]");
                 _simulationInfo.AppendLine($"Bodies:{_physicsOnGpuSolver.BodiesCount} Particles:{_physicsOnGpuSolver.ParticleCount}");
                 _simulationInfo.Append($"DrawCalls:{GraphicsDevice.Metrics.DrawCount} Fps:{1f / gameTime.ElapsedGameTime.TotalSeconds: 00.0}");
 
@@ -229,16 +263,17 @@ namespace RigidBodySimulationOnGpuDX
                 _spriteBatch.End();
             }
 
-            _spriteBatch.Begin();
-
-            var size = 256;
-            var viewport = GraphicsDevice.Viewport;
-            _spriteBatch.Draw(_physicsOnGpuSolver.ShadowMapDebug,
-                new Rectangle(0, viewport.Height - size, size, size), Color.White);
-
-            _spriteBatch.End();
-
             base.Draw(gameTime);
+        }
+
+        private void ApplyCurrentShadowSettings()
+        {
+            var settings = _shadowSettings[_currentShadowSettingsIndex];
+
+            _physicsOnGpuSolver.EnableShadows = settings.Enabled;
+            _physicsOnGpuSolver.ShadowMapSize = settings.ShadowMapSize;
+            _physicsOnGpuSolver.BlurType = settings.BlurType;
+            _physicsOnGpuSolver.GaussianHalfKernelSize = _physicsOnGpuSolver.BoxBlurIterations = settings.BlurSize;
         }
 
         private void RunCurrentSpawnAction()
