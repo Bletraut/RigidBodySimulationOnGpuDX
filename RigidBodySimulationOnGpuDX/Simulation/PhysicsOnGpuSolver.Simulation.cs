@@ -21,7 +21,7 @@ namespace RigidBodySimulationOnGpuDX
 
         private void UpdateParticleValues()
         {
-            _graphicsDevice.SetRenderTargets(_particleWorldPositions, _particleVelocities);
+            _graphicsDevice.SetRenderTargets(_particleValuesRenderTargetBindings);
 
             _particleValuesEffect.Parameters["BodiesParticles"].SetValue(_bodiesParticles);
             _particleValuesEffect.Parameters["BodiesPositions"].SetValue(_currentBodiesPositions);
@@ -77,8 +77,7 @@ namespace RigidBodySimulationOnGpuDX
 
         private void CalculateBodiesValues(float deltaTime)
         {
-            _graphicsDevice.SetRenderTargets(_nextBodiesPositions, _nextBodiesRotations,
-                _nextBodiesLinearMomenta, _nextBodiesAngularMomenta, _bodiesAngularVelocities);
+            _graphicsDevice.SetRenderTargets(_bodiesValuesRenderTargetBindings);
 
             var values = new Vector4(deltaTime, BodiesBufferSize, ParticleBufferSize, MaxLinearMomenta);
             _bodiesValuesEffect.Parameters["BodiesParticles"].SetValue(_bodiesParticles);
@@ -98,6 +97,11 @@ namespace RigidBodySimulationOnGpuDX
             (_currentBodiesRotations, _nextBodiesRotations) = (_nextBodiesRotations, _currentBodiesRotations);
             (_currentBodiesLinearMomenta, _nextBodiesLinearMomenta) = (_nextBodiesLinearMomenta, _currentBodiesLinearMomenta);
             (_currentBodiesAngularMomenta, _nextBodiesAngularMomenta) = (_nextBodiesAngularMomenta, _currentBodiesAngularMomenta);
+
+            _bodiesValuesRenderTargetBindings[0] = _nextBodiesPositions;
+            _bodiesValuesRenderTargetBindings[1] = _nextBodiesRotations;
+            _bodiesValuesRenderTargetBindings[2] = _nextBodiesLinearMomenta;
+            _bodiesValuesRenderTargetBindings[3] = _nextBodiesAngularMomenta;
         }
     }
 }

@@ -77,6 +77,10 @@ namespace RigidBodySimulationOnGpuDX
 
         private readonly Effect _blurEffect;
 
+        // Render target bindings.
+        private readonly RenderTargetBinding[] _particleValuesRenderTargetBindings;
+        private readonly RenderTargetBinding[] _bodiesValuesRenderTargetBindings;
+
         // Textures.
         private readonly Texture2D _baseColorTexture;
 
@@ -166,6 +170,17 @@ namespace RigidBodySimulationOnGpuDX
             _particlesDebugRenderEffect = _contentManager.Load<Effect>("Effects\\ParticleDebugRender");
             _simulationRenderEffect = _contentManager.Load<Effect>("Effects\\SimulationRender");
             _blurEffect = _contentManager.Load<Effect>("Effects\\Blur");
+
+            // Render target bindings.
+            _particleValuesRenderTargetBindings =
+            [
+                _particleWorldPositions, _particleVelocities
+            ];
+            _bodiesValuesRenderTargetBindings =
+            [
+                _nextBodiesPositions, _nextBodiesRotations,
+                _nextBodiesLinearMomenta, _nextBodiesAngularMomenta, _bodiesAngularVelocities
+            ];
 
             // Textures.
             _baseColorTexture = _contentManager.Load<Texture2D>("Textures\\BaseColor");
