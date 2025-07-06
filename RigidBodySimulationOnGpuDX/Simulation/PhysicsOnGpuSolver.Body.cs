@@ -23,7 +23,7 @@ namespace RigidBodySimulationOnGpuDX
                     particlePositions[i] -= centerOfMass;
 
                 bodyInstancesData = new BodyInstancesData(_graphicsDevice, BodiesBufferSize,
-                    particlePositions, centerOfMass, _freeInverseInertiaTensorIndex);
+                    model.Meshes[0].MeshParts[0], particlePositions, centerOfMass, _freeInverseInertiaTensorIndex);
                 _bodyInstancesCache.Add(model, bodyInstancesData);
 
                 _inverseInertiaTensorBuffer[_freeInverseInertiaTensorIndex] = CalculateInverseInertiaTensor(mass, particlePositions);
@@ -125,7 +125,8 @@ namespace RigidBodySimulationOnGpuDX
                 _vertexDeclaration = new VertexDeclaration(elements);
             }
 
-            public VertexBuffer InstancesBuffer { get; private set; }
+            public ModelMeshPart MeshPart { get; private set; }
+            public VertexBufferBinding[] VertexBufferBindings { get; private set; }
             public int InstancesCount { get; private set; }
             public Vector3[] ParticlePositions { get; private set; }
             public Vector3 CenterOfMass { get; private set; }
@@ -133,19 +134,26 @@ namespace RigidBodySimulationOnGpuDX
 
             private readonly int _bufferSize;
             private readonly Vector2[] _instancesData;
+            private readonly VertexBuffer _instanceBuffer;
 
             public BodyInstancesData(GraphicsDevice graphicsDevice, int bufferSize,
-                Vector3[] particlePositions, Vector3 centerOfMass, int inverseInertiaTensorIndex)
+                ModelMeshPart meshPart, Vector3[] particlePositions, Vector3 centerOfMass, int inverseInertiaTensorIndex)
             {
                 _bufferSize = bufferSize;
                 _instancesData = new Vector2[bufferSize * bufferSize];
 
+                MeshPart = meshPart;
                 ParticlePositions = particlePositions;
                 CenterOfMass = centerOfMass;
                 InverseInertiaTensorIndex = inverseInertiaTensorIndex;
 
-                InstancesBuffer = new VertexBuffer(graphicsDevice, _vertexDeclaration,
+                _instanceBuffer = new VertexBuffer(graphicsDevice, _vertexDeclaration,
                     _instancesData.Length, BufferUsage.WriteOnly);
+                VertexBufferBindings =
+                [
+                    new(MeshPart.VertexBuffer, 0, 0),
+                    new(_instanceBuffer, 0, 1)
+                ];
             }
 
             public void AddInstance(int instanceIndex)
@@ -154,7 +162,7 @@ namespace RigidBodySimulationOnGpuDX
                 var y = instanceIndex / _bufferSize;
 
                 _instancesData[InstancesCount] = new Vector2(x, y);
-                InstancesBuffer.SetData(_instancesData);
+                _instanceBuffer.SetData(_instancesData);
 
                 InstancesCount++;
             }

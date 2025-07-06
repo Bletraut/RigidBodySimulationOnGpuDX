@@ -154,7 +154,7 @@ namespace RigidBodySimulationOnGpuDX
         {
             _simulationRenderEffect.Parameters["ViewProjection"].SetValue(viewProjection);
 
-            foreach (var (model, bodyInstanceCache) in _bodyInstancesCache)
+            foreach (var bodyInstanceCache in _bodyInstancesCache.Values)
             {
                 if (bodyInstanceCache.InstancesCount == 0)
                     continue;
@@ -162,18 +162,12 @@ namespace RigidBodySimulationOnGpuDX
                 _simulationRenderEffect.Parameters["CenterOfMass"].SetValue(new Vector4(bodyInstanceCache.CenterOfMass, 0));
                 pass.Apply();
 
-                foreach (var mesh in model.Meshes)
-                {
-                    foreach (var meshPart in mesh.MeshParts)
-                    {
-                        _graphicsDevice.SetVertexBuffers(new VertexBufferBinding(meshPart.VertexBuffer, 0, 0),
-                            new VertexBufferBinding(bodyInstanceCache.InstancesBuffer, 0, 1));
-                        _graphicsDevice.Indices = meshPart.IndexBuffer;
+                var meshPart = bodyInstanceCache.MeshPart;
+                _graphicsDevice.SetVertexBuffers(bodyInstanceCache.VertexBufferBindings);
+                _graphicsDevice.Indices = meshPart.IndexBuffer;
 
-                        _graphicsDevice.DrawInstancedPrimitives(PrimitiveType.TriangleList,
-                            meshPart.VertexOffset, meshPart.StartIndex, meshPart.PrimitiveCount, bodyInstanceCache.InstancesCount);
-                    }
-                }
+                _graphicsDevice.DrawInstancedPrimitives(PrimitiveType.TriangleList,
+                    meshPart.VertexOffset, meshPart.StartIndex, meshPart.PrimitiveCount, bodyInstanceCache.InstancesCount);
             }
         }
 
